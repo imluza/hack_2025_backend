@@ -29,14 +29,14 @@ async def send_verification_code(email: str, db):
 
     if existing_code:
         time_left = (existing_code.expires_at - datetime.utcnow()).seconds
-        if time_left > 50:
+        if time_left > 240:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Код уже отправлен. Повторный запрос возможен через 60 секунд"
             )
 
     code = generate_code()
-    expires_at = datetime.utcnow() + timedelta(minutes=1)
+    expires_at = datetime.utcnow() + timedelta(minutes=5)
 
     verification_code = VerificationCode(
         email=email,

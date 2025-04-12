@@ -43,13 +43,6 @@ async def register(user_data: UserRegister, db: Session = Depends(get_db)):
         email=user_data.email,
         message="Код подтверждения отправлен на указанную почту"
     )
-@router.post("/register-send-email-verification", response_model=MessageResponse)
-async def send_email_verification(email_data: EmailRequest, db: Session = Depends(get_db)):
-    await send_verification_code(email_data.email, db)
-    return MessageResponse(
-        email=email_data.email,
-        message="Код подтверждения отправлен на указанную почту"
-    )
 
 @router.post("/register-verify-email", response_model=MessageResponse)
 async def verify_email(verify_data: VerifyEmailRequest, db: Session = Depends(get_db)):
@@ -79,6 +72,7 @@ async def verify_email(verify_data: VerifyEmailRequest, db: Session = Depends(ge
         email=verify_data.email,
         message="Почта подтверждена успешно"
     )
+
 @router.post("/login", response_model=MessageResponse)
 async def login(login_data: LoginRequest, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == login_data.email).first()

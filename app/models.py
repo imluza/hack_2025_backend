@@ -1,6 +1,7 @@
 from sqlalchemy import (
     Column, String, Integer, Numeric, UUID, Boolean,
-    DateTime, ForeignKey, CheckConstraint, Text
+    DateTime, ForeignKey, CheckConstraint, Text,
+    Float
 )
 from sqlalchemy.sql import func
 from sqlalchemy.dialects.postgresql import ENUM
@@ -32,33 +33,24 @@ class User(Base):
 class Project(Base):
     __tablename__ = "projects"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(String, primary_key=True, index=True)
     title = Column(String, nullable=False)
     description = Column(String, nullable=False)
-    full_description = Column(Text)
-    category = Column(String, nullable=False)
+    full_description = Column(String)
+    category = Column(ENUM('ecology', 'social', 'governance', name='category_enum'), nullable=False)
     image = Column(String)
-    current_amount = Column(Numeric, default=0)
-    target_amount = Column(Numeric, nullable=False)
-    days_left = Column(Integer, nullable=False)
+    current_amount = Column(Float, default=0)
+    target_amount = Column(Float, nullable=False)
+    days_left = Column(Integer)
     backers = Column(Integer, default=0)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    end_date = Column(DateTime(timezone=True), nullable=False)
-    creator_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"))
-    creator_name = Column(String)
-    creator_avatar = Column(String)
     esg_e = Column(Integer)
     esg_s = Column(Integer)
     esg_g = Column(Integer)
-    esg_total = Column(Integer)
-
-    __table_args__ = (
-        CheckConstraint("category IN ('ecology', 'social', 'governance')", name="check_category"),
-        CheckConstraint("esg_e BETWEEN 0 AND 5", name="check_esg_e"),
-        CheckConstraint("esg_s BETWEEN 0 AND 5", name="check_esg_s"),
-        CheckConstraint("esg_g BETWEEN 0 AND 5", name="check_esg_g"),
-        CheckConstraint("esg_total BETWEEN 0 AND 15", name="check_esg_total"),
-    )
+    created_at = Column(DateTime, default=datetime.utcnow)
+    end_date = Column(DateTime, nullable=False)
+    creator_id = Column(String, ForeignKey('users.id'))
+    creator_name = Column(String)
+    creator_avatar = Column(String)
 
 class Achievement(Base):
     __tablename__ = "achievements"

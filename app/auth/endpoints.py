@@ -7,7 +7,8 @@ from app.schemas import (
 )
 from .service import (
     hash_password, verify_password, generate_code,
-    send_verification_code, generate_random_password
+    send_verification_code, generate_random_password,
+    send_recovered_password
 )
 from app.security import create_access_token
 from app.models import User, VerificationCode
@@ -18,11 +19,23 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 @router.post("/register", response_model=MessageResponse)
 async def register(user_data: UserRegister, db: Session = Depends(get_db)):
-    if db.query(User).filter(User.email == user_data.email).first():
+    existing_user = db.query(User).filter(User.email == user_data.email).first()
+    if existing_user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Пользователь с таким email уже существует"
         )
+
+    hashed_password = hash_password(user_data.password)
+
+    new_user = User(
+        email=user_data.email,
+        name=user_data.name,
+        password_hash=hashed_password,
+        is_active=False
+    )
+    db.add(new_user)
+    db.commit()
 
     await send_verification_code(user_data.email, db)
 
@@ -30,7 +43,6 @@ async def register(user_data: UserRegister, db: Session = Depends(get_db)):
         email=user_data.email,
         message="Код подтверждения отправлен на указанную почту"
     )
-
 @router.post("/register-send-email-verification", response_model=MessageResponse)
 async def send_email_verification(email_data: EmailRequest, db: Session = Depends(get_db)):
     await send_verification_code(email_data.email, db)
@@ -53,11 +65,20 @@ async def verify_email(verify_data: VerifyEmailRequest, db: Session = Depends(ge
             detail="Код неверный или истёк срок действия"
         )
 
+    user = db.query(User).filter(User.email == verify_data.email).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Пользователь не найден"
+        )
+
+    user.is_active = True
+    db.commit()
+
     return MessageResponse(
         email=verify_data.email,
         message="Почта подтверждена успешно"
     )
-
 @router.post("/login", response_model=MessageResponse)
 async def login(login_data: LoginRequest, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == login_data.email).first()
@@ -70,7 +91,8 @@ async def login(login_data: LoginRequest, db: Session = Depends(get_db)):
     await send_verification_code(login_data.email, db)
 
     return MessageResponse(
-        message="Логин верный. Отправлен код подтверждения на email"
+        email=login_data.email,
+        message="Отправлен код подтверждения на email"
     )
 
 @router.post("/2fa", response_model=TokenResponse)
@@ -113,12 +135,16 @@ async def password_recovery(email_data: EmailRequest, db: Session = Depends(get_
     user.password_hash = hash_password(new_password)
     db.commit()
 
-    return MessageResponse(
-        message="Новый пароль был отправлен на вашу почту"
+    email_subject = "Восстановление пароля"
+    email_body = (
+        f"Здравствуйте, {user.email}!\n\n"
+        f"Ваш новый пароль: {new_password}\n\n"
+        f"Пожалуйста, смените его после входа в систему.\n"
+        f"Если вы не запрашивали восстановление, просто проигнорируйте это сообщение."
     )
+    await send_recovered_password(email=user.email, subject=email_subject, body=email_body)
 
-@router.post("/password/reset", response_model=MessageResponse)
-async def password_reset(reset_data: PasswordResetRequest, db: Session = Depends(get_db)):
     return MessageResponse(
-        message="Пароль успешно изменён"
+        message="Новый пароль был отправлен на вашу почту",
+        email = user.email
     )

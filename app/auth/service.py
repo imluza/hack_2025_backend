@@ -3,7 +3,7 @@ import hashlib
 import time
 from datetime import datetime, timedelta
 from fastapi import HTTPException, status
-from .email_service import send_verification_email
+from .email_service import send_verification_email, send_password_email
 from app.models import VerificationCode, User
 from app.database import get_db
 from app.security import create_access_token
@@ -29,14 +29,14 @@ async def send_verification_code(email: str, db):
 
     if existing_code:
         time_left = (existing_code.expires_at - datetime.utcnow()).seconds
-        if time_left > 50:  
+        if time_left > 50:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Код уже отправлен. Повторный запрос возможен через 60 секунд"
             )
 
     code = generate_code()
-    expires_at = datetime.utcnow() + timedelta(minutes=5)
+    expires_at = datetime.utcnow() + timedelta(minutes=1)
 
     verification_code = VerificationCode(
         email=email,
@@ -49,3 +49,6 @@ async def send_verification_code(email: str, db):
     await send_verification_email(email, code)
 
     return code
+
+async def send_recovered_password(email: str, subject:str, body:str):
+    await send_password_email(email, subject, body)

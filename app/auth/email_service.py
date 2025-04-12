@@ -35,3 +35,31 @@ async def send_verification_email(email: str, code: str):
         )
     finally:
         server.quit()
+
+
+async def send_password_email(to: str, subject: str, body: str):
+    smtp_server = os.getenv("SMTP_SERVER")
+    smtp_port = int(os.getenv("SMTP_PORT"))
+    sender_email = os.getenv("SENDER_EMAIL")
+    password = os.getenv("PASSWORD_EMAIL")
+    display_name = os.getenv("DISPLAY_NAME")
+
+    message = MIMEMultipart()
+    message["From"] = f'"{display_name}" <{sender_email}>'
+    message["To"] = to
+    message["Subject"] = subject
+
+    message.attach(MIMEText(body, "plain"))
+
+    try:
+        server = smtplib.SMTP(smtp_server, smtp_port)
+        server.starttls()
+        server.login(sender_email, password)
+        server.sendmail(sender_email, to, message.as_string())
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Ошибка при отправке письма: {e}"
+        )
+    finally:
+        server.quit()

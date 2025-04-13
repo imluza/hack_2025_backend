@@ -39,42 +39,64 @@ async def create_project(
     if end_date.tzinfo is None:
         end_date = end_date.replace(tzinfo=timezone.utc)
 
-    days_left = (end_date - datetime.now(timezone.utc)).days
-    project = ProjectModel(
-        id=str(uuid.uuid4()),
-        title=project_data.title,
-        description=project_data.description,
-        full_description=project_data.full_description,
-        category=project_data.category,
-        image=project_data.image,
-        current_amount=0,
-        target_amount=project_data.target_amount,
-        days_left=days_left,
-        backers=0,
-        esg_e=0,
-        esg_s=0,
-        esg_g=0,
-        created_at=datetime.now(timezone.utc),
-        end_date=end_date,
-        creator_id=str(current_user.id),
-        creator_name=current_user.name,
-        creator_avatar=current_user.avatar,
-        is_active=False
-    )
+    analysis_results, full_answer = analyze_title(project_data.title, project_data.full_description)
+    for analysis_result in analysis_results:
+        if analysis_result:
+            print(analysis_result)
+            if analysis_result['valid'] == "true":
+                days_left = (end_date - datetime.now(timezone.utc)).days
+                project = ProjectModel(
+                    id=str(uuid.uuid4()),
+                    title=project_data.title,
+                    description=project_data.description,
+                    full_description=project_data.full_description,
+                    category=project_data.category,
+                    image=project_data.image,
+                    current_amount=0,
+                    target_amount=project_data.target_amount,
+                    days_left=days_left,
+                    backers=0,
+                    esg_e=int(analysis_result["e"]),
+                    esg_s=int(analysis_result["s"]),
+                    esg_g=int(analysis_result["g"]),
+                    created_at=datetime.now(timezone.utc),
+                    end_date=end_date,
+                    creator_id=str(current_user.id),
+                    creator_name=current_user.name,
+                    creator_avatar=current_user.avatar,
+                    is_active=True
+                )
+                db.add(project)
+                db.commit()
+                db.refresh(project)
+            else:
+                days_left = (end_date - datetime.now(timezone.utc)).days
+                project = ProjectModel(
+                    id=str(uuid.uuid4()),
+                    title=project_data.title,
+                    description=project_data.description,
+                    full_description=project_data.full_description,
+                    category=project_data.category,
+                    image=project_data.image,
+                    current_amount=0,
+                    target_amount=project_data.target_amount,
+                    days_left=days_left,
+                    backers=0,
+                    esg_e=0,
+                    esg_s=0,
+                    esg_g=0,
+                    created_at=datetime.now(timezone.utc),
+                    end_date=end_date,
+                    creator_id=str(current_user.id),
+                    creator_name=current_user.name,
+                    creator_avatar=current_user.avatar,
+                    is_active=False
+                )
+                db.add(project)
+                db.commit()
+                db.refresh(project)
+                await send_email_to_admins(str(uuid.uuid4()), project_data.title, analysis_result, full_answer, db)
 
-    db.add(project)
-    db.commit()
-    db.refresh(project)
-
-    analysis_result, full_answer = analyze_title(project_data.title)
-
-    if analysis_result:
-        valid_projects = [item for item in analysis_result if item['valid'] == 'true']
-        if valid_projects:
-            project.is_active = True
-            db.commit()
-        else:
-            await send_email_to_admins(str(uuid.uuid4()), project_data.title, valid_projects, full_answer, db)
 
     return Project.from_orm(project)
 

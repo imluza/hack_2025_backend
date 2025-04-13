@@ -53,6 +53,7 @@ class Project(Base):
     creator_name = Column(String(100))
     creator_avatar = Column(String(255))
     is_active = Column(Boolean, default=False)
+
 class Achievement(Base):
     __tablename__ = "achievements"
 

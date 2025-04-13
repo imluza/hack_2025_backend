@@ -34,7 +34,7 @@ async def create_transaction(
         project_id=transaction_data.project_id,
         project_title=project.title,
         amount=transaction_amount,
-        status="approved",
+        status="completed",
     )
 
     db.add(transaction)

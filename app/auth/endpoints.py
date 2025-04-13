@@ -110,7 +110,7 @@ async def verify_2fa(twofa_data: TwoFARequest, db: Session = Depends(get_db)):
             detail="Пользователь не найден"
         )
 
-    access_token = create_access_token(data={"sub": user.email})
+    access_token = create_access_token(data={"email": user.email, "role": user.role})
     return TokenResponse(
         access_token=access_token,
         token_type="bearer"

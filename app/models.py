@@ -1,13 +1,14 @@
 from sqlalchemy import (
-    Column, String, Integer, Numeric, UUID, Boolean,
+    Column, String, Integer, Numeric, Boolean,
     DateTime, ForeignKey, CheckConstraint, Text,
     Float
 )
 from sqlalchemy.sql import func
-from sqlalchemy.dialects.postgresql import ENUM
+from sqlalchemy.dialects.postgresql import ENUM, UUID
 from .database import Base
 import uuid
 from datetime import datetime
+
 
 class VerificationCode(Base):
     __tablename__ = "verification_codes"
@@ -22,45 +23,46 @@ class User(Base):
     __tablename__ = "users"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    name = Column(String, nullable=False)
-    email = Column(String, unique=True, nullable=False)
+    name = Column(String(100), nullable=False)
+    email = Column(String(255), unique=True, nullable=False)
     password_hash = Column(String, nullable=False)
     avatar = Column(String)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     is_active = Column(Boolean, default=False)
-
+    role = Column(String(10), default="user")
+    
 class Project(Base):
     __tablename__ = "projects"
 
-    id = Column(String, primary_key=True, index=True)
-    title = Column(String, nullable=False)
-    description = Column(String, nullable=False)
-    full_description = Column(String)
-    category = Column(ENUM('ecology', 'social', 'governance', name='category_enum'), nullable=False)
-    image = Column(String)
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    creator_id = Column(UUID(as_uuid=True), ForeignKey('users.id'))
+    title = Column(String(100), nullable=False)
+    description = Column(String(500), nullable=False)
+    full_description = Column(Text)
+    category = Column(String(20), nullable=False)
+    image = Column(String(255))
     current_amount = Column(Float, default=0)
     target_amount = Column(Float, nullable=False)
     days_left = Column(Integer)
     backers = Column(Integer, default=0)
-    esg_e = Column(Integer)
-    esg_s = Column(Integer)
-    esg_g = Column(Integer)
+    esg_e = Column(Integer, default=0)
+    esg_s = Column(Integer, default=0)
+    esg_g = Column(Integer, default=0)
     created_at = Column(DateTime, default=datetime.utcnow)
     end_date = Column(DateTime, nullable=False)
-    creator_id = Column(String, ForeignKey('users.id'))
-    creator_name = Column(String)
-    creator_avatar = Column(String)
+    creator_name = Column(String(100))
+    creator_avatar = Column(String(255))
 
 class Achievement(Base):
     __tablename__ = "achievements"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"))
     title = Column(String, nullable=False)
     description = Column(Text)
     icon = Column(String)
     earned_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"))
 
 class Transaction(Base):
     __tablename__ = "transactions"

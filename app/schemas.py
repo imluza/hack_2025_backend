@@ -1,10 +1,12 @@
-from pydantic import BaseModel, EmailStr, Field, ConfigDict
+from pydantic import BaseModel, EmailStr, Field, ConfigDict, field_validator
 from typing import Optional, List, Literal
-from datetime import datetime
+from datetime import datetime, timezone
+from uuid import UUID
 
 class UserResponse(BaseModel):
     name: str = Field(..., min_length=2)
     email: EmailStr
+    role: str
 
 class UserRegister(BaseModel):
     name: str = Field(..., min_length=2)
@@ -51,6 +53,12 @@ class ProjectBase(BaseModel):
     target_amount: float = Field(..., gt=0)
     end_date: datetime
 
+    @field_validator('end_date')
+    def validate_end_date(cls, v):
+        if v.tzinfo is None:
+            return v.replace(tzinfo=timezone.utc)
+        return v
+
 class ProjectCreate(ProjectBase):
     pass
 
@@ -70,17 +78,44 @@ class ProjectUpdate(BaseModel):
     comments: Optional[List[str]] = None
 
 class Project(ProjectBase):
-    id: str
+    id: UUID
+    creator_id: UUID
     current_amount: float = 0
     days_left: int
     backers: int = 0
     esg_rating: ESGRating
     created_at: datetime
-    creator: str
-    updates: Optional[List[str]] = None
-    comments: Optional[List[str]] = None
+    creator_name: str
+    creator_avatar: Optional[str] = None
 
-    model_config = ConfigDict(from_attributes=True)
+    @classmethod
+    def from_orm(cls, obj):
+        return cls(
+            id=obj.id,
+            title=obj.title,
+            description=obj.description,
+            full_description=obj.full_description,
+            category=obj.category,
+            image=obj.image,
+            current_amount=obj.current_amount,
+            target_amount=obj.target_amount,
+            days_left=obj.days_left,
+            backers=obj.backers,
+            esg_rating=ESGRating(e=obj.esg_e, s=obj.esg_s, g=obj.esg_g),
+            created_at=obj.created_at,
+            end_date=obj.end_date,
+            creator_id=obj.creator_id,
+            creator_name=obj.creator_name,
+            creator_avatar=obj.creator_avatar
+        )
+
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_encoders={
+            UUID: lambda v: str(v),
+            datetime: lambda v: v.isoformat()
+        }
+    )
 
 class ProjectListResponse(BaseModel):
     projects: List[Project]

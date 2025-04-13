@@ -1,11 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 from typing import List
-from uuid import uuid4
-from datetime import datetime, timedelta
+import uuid
+from datetime import datetime, timedelta, timezone
 from app.security import get_current_user
 from ..database import get_db
-from app.models import Project, User
+from app.models import Project as ProjectModel, User
 from app.schemas import (
     ProjectCreate, ProjectUpdate, Project,
     ProjectListResponse, ESGRating
@@ -19,32 +19,31 @@ def get_projects(
     limit: int = 100,
     db: Session = Depends(get_db)
 ):
-    projects = db.query(Project).offset(skip).limit(limit).all()
+    db_projects = db.query(ProjectModel).offset(skip).limit(limit).all()
+    projects = [Project.from_orm(project) for project in db_projects]
     return {"projects": projects}
 
-@router.get("/{project_id}", response_model=Project)
-def get_project(
-    project_id: str,
-    db: Session = Depends(get_db)
-):
-    project = db.query(Project).filter(Project.id == project_id).first()
-    if not project:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Project not found"
-        )
-    return project
-
 @router.post("/", response_model=Project, status_code=status.HTTP_201_CREATED)
-def create_project(
+async def create_project(
+    request: Request, 
     project_data: ProjectCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    days_left = (project_data.end_date - datetime.now()).days
+    headers = request.headers
+    print("Headers:", headers)
 
-    project = Project(
-        id=str(uuid4()),
+    body = await request.body()
+    print("Body:", body.decode())
+
+    end_date = project_data.end_date
+    if end_date.tzinfo is None:
+        end_date = end_date.replace(tzinfo=timezone.utc)
+
+    days_left = (end_date - datetime.now(timezone.utc)).days
+
+    project = ProjectModel(
+        id=str(uuid.uuid4()),
         title=project_data.title,
         description=project_data.description,
         full_description=project_data.full_description,
@@ -57,9 +56,9 @@ def create_project(
         esg_e=0,
         esg_s=0,
         esg_g=0,
-        created_at=datetime.now(),
-        end_date=project_data.end_date,
-        creator_id=current_user.id,
+        created_at=datetime.now(timezone.utc),
+        end_date=end_date,
+        creator_id=str(current_user.id),
         creator_name=current_user.name,
         creator_avatar=current_user.avatar
     )
@@ -67,7 +66,22 @@ def create_project(
     db.add(project)
     db.commit()
     db.refresh(project)
-    return project
+    return Project.from_orm(project)
+
+@router.get("/{project_id}", response_model=Project)
+def get_project(
+    project_id: str,
+    db: Session = Depends(get_db)
+):
+    project = db.query(ProjectModel).filter(ProjectModel.id == project_id).first()
+
+    if not project:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Project not found"
+        )
+
+    return Project.from_orm(project)
 
 @router.patch("/{project_id}", response_model=Project)
 def update_project(
@@ -76,7 +90,8 @@ def update_project(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    project = db.query(Project).filter(Project.id == project_id).first()
+    project = db.query(ProjectModel).filter(ProjectModel.id == project_id).first()
+
     if not project:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -90,20 +105,21 @@ def update_project(
         )
 
     update_data = project_data.model_dump(exclude_unset=True)
+
     for field, value in update_data.items():
         if field == "esg_rating":
-            setattr(project, "esg_e", value.e)
-            setattr(project, "esg_s", value.s)
-            setattr(project, "esg_g", value.g)
+            project.esg_e = value.get('e', project.esg_e)
+            project.esg_s = value.get('s', project.esg_s)
+            project.esg_g = value.get('g', project.esg_g)
         elif field == "end_date":
             setattr(project, field, value)
-            setattr(project, "days_left", (value - datetime.now()).days)
+            project.days_left = (value - datetime.now(timezone.utc)).days
         elif field not in ["updates", "comments"]:
             setattr(project, field, value)
 
     db.commit()
     db.refresh(project)
-    return project
+    return Project.from_orm(project)
 
 @router.delete("/{project_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_project(
@@ -111,7 +127,7 @@ def delete_project(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    project = db.query(Project).filter(Project.id == project_id).first()
+    project = db.query(ProjectModel).filter(ProjectModel.id == project_id).first()
     if not project:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

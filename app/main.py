@@ -6,6 +6,10 @@ from sqlalchemy.orm import Session
 from .auth.endpoints import router as auth_router
 from .projects.endpoints import router as projects_router
 from .users.endpoints import router as users_router
+from sqladmin import Admin
+from .admin import AdminAuth
+from app.admin import UserAdmin, ProjectAdmin
+from .security import SECRET_KEY, ALGORITHM
 models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
@@ -21,6 +25,12 @@ app.add_middleware(
 app.include_router(projects_router)
 app.include_router(auth_router)
 app.include_router(users_router)
+
+admin = Admin(app, engine, authentication_backend=AdminAuth(SECRET_KEY))
+
+admin.add_view(UserAdmin)
+admin.add_view(ProjectAdmin)
+
 
 @app.get("/")
 async def alive():

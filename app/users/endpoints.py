@@ -29,7 +29,7 @@ def get_current_user(
     try:
         token = credentials.credentials
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        email = payload.get("sub")
+        email = payload.get("email")
         if email is None:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -59,5 +59,6 @@ async def get_current_user_info(
 ):
     return {
         "email": user.email,
-        "name": user.name
+        "name": user.name,
+        "role": user.role
     }

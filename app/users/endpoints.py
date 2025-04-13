@@ -60,5 +60,7 @@ async def get_current_user_info(
     return {
         "email": user.email,
         "name": user.name,
-        "role": user.role
+        "role": user.role,
+        "id": user.id,
+        "photo": user.avatar
     }

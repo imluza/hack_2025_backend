@@ -3,7 +3,7 @@ import json
 import os
 from dotenv import load_dotenv
 
-def analyze_title(title):
+def analyze_title(title, description):
     load_dotenv()
     OLLAMA_URL = os.getenv("OLLAMA_URL")
     headers = {
@@ -30,7 +30,7 @@ def analyze_title(title):
     ]
 
     Вот цель:
-    {title}
+    {title} - {description}
     """,
         "temperature": 0.0,
         "top_p": 0.9,
@@ -55,7 +55,7 @@ def analyze_title(title):
                 raw_response = json_response['response']
                 try:
                     json_data = json.loads(raw_response)
-                    return json_data
+                    return json_data, json_response
 
                 except json.JSONDecodeError:
                     return

@@ -66,7 +66,7 @@ async def create_project(
     db.commit()
     db.refresh(project)
 
-    analysis_result = analyze_title(project_data.title)
+    analysis_result, full_answer = analyze_title(project_data.title)
 
     if analysis_result:
         valid_projects = [item for item in analysis_result if item['valid'] == 'true']
@@ -74,7 +74,7 @@ async def create_project(
             project.is_active = True
             db.commit()
         else:
-            await send_email_to_admins(str(uuid.uuid4()), project_data.title, analysis_result, db)
+            await send_email_to_admins(str(uuid.uuid4()), project_data.title, valid_projects, full_answer, db)
 
     return Project.from_orm(project)
 

@@ -6,6 +6,8 @@ from sqlalchemy.orm import Session
 from .auth.endpoints import router as auth_router
 from .projects.endpoints import router as projects_router
 from .users.endpoints import router as users_router
+from .transaction.endpoints import router as transaction_router
+from .comments.endpoints import router as comment_router
 from sqladmin import Admin
 from .admin import AdminAuth
 from app.admin import UserAdmin, ProjectAdmin
@@ -22,8 +24,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+app.include_router(comment_router)
 app.include_router(projects_router)
 app.include_router(auth_router)
+app.include_router(transaction_router)
 app.include_router(users_router)
 
 admin = Admin(app, engine, authentication_backend=AdminAuth(SECRET_KEY))

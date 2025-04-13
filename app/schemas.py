@@ -2,11 +2,30 @@ from pydantic import BaseModel, EmailStr, Field, ConfigDict, field_validator
 from typing import Optional, List, Literal
 from datetime import datetime, timezone
 from uuid import UUID
+from decimal import Decimal
 
 class UserResponse(BaseModel):
     name: str = Field(..., min_length=2)
     email: EmailStr
     role: str
+    id: UUID
+    photo: str
+
+class CommentCreate(BaseModel):
+    project_id: UUID
+    content: str
+
+class CommentResponse(BaseModel):
+    id: UUID
+    project_id: UUID
+    content: str
+    date: datetime
+    author_id: UUID
+    author_name: str | None
+    author_avatar: str | None
+
+    class Config:
+        orm_mode = True
 
 class UserRegister(BaseModel):
     name: str = Field(..., min_length=2)
@@ -19,6 +38,25 @@ class EmailRequest(BaseModel):
 class VerifyEmailRequest(BaseModel):
     email: EmailStr
     confirm_code: str = Field(..., min_length=6, max_length=6)
+
+class TransactionCreate(BaseModel):
+    project_id: UUID
+    amount: Decimal
+
+    class Config:
+        orm_mode = True
+
+class TransactionResponse(BaseModel):
+    id: UUID
+    user_id: UUID
+    project_id: UUID
+    project_title: str
+    amount: Decimal
+    date: datetime
+    status: str
+
+    class Config:
+        orm_mode = True
 
 class LoginRequest(BaseModel):
     email: EmailStr

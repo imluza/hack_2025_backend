@@ -66,7 +66,7 @@ async def send_password_email(to: str, subject: str, body: str):
         server.quit()
 
 
-async def send_email_to_admins(project_id, project_title, analyze_result, db):
+async def send_email_to_admins(project_id, project_title, analyze_result, body_of_response, db):
 
     admins = db.query(User).filter(User.role == "admin").all()
     smtp_server = os.getenv("SMTP_SERVER")
@@ -80,8 +80,8 @@ async def send_email_to_admins(project_id, project_title, analyze_result, db):
         message["To"] = admin.email
         message["Subject"] = "Утверждение проекта"
 
-        body = f"Недавно размещенный проект не проходит контроль. Перейдите в панель управления для просмотра информации\nАйди:     {project_id}\n Нвзвание:    {project_title}"
-
+        body = f"Недавно размещенный проект не проходит контроль. Перейдите в панель управления для просмотра информации\nАйди:     {project_id}\n Название:    {project_title}"
+        body += f"\n\nОтвет Модели:\n{body_of_response}"
         message.attach(MIMEText(body, "plain"))
         try:
             server = smtplib.SMTP(smtp_server, smtp_port)

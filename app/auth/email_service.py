@@ -5,6 +5,7 @@ import os
 from fastapi import HTTPException, status
 from dotenv import load_dotenv
 from fastapi import HTTPException
+from app.models import User
 
 load_dotenv()
 
@@ -63,3 +64,34 @@ async def send_password_email(to: str, subject: str, body: str):
         )
     finally:
         server.quit()
+
+
+async def send_email_to_admins(project_id, project_title, analyze_result, db):
+
+    admins = db.query(User).filter(User.role == "admin").all()
+    smtp_server = os.getenv("SMTP_SERVER")
+    smtp_port = int(os.getenv("SMTP_PORT"))
+    sender_email = os.getenv("SENDER_EMAIL")
+    password = os.getenv("PASSWORD_EMAIL")
+    display_name = os.getenv("DISPLAY_NAME")
+    for admin in admins:
+        message = MIMEMultipart()
+        message["From"] = f'"{display_name}" <{sender_email}>'
+        message["To"] = admin.email
+        message["Subject"] = "Утверждение проекта"
+
+        body = f"Недавно размещенный проект не проходит контроль. Перейдите в панель управления для просмотра информации\nАйди:     {project_id}\n Нвзвание:    {project_title}"
+
+        message.attach(MIMEText(body, "plain"))
+        try:
+            server = smtplib.SMTP(smtp_server, smtp_port)
+            server.starttls()
+            server.login(sender_email, password)
+            server.sendmail(sender_email, admin.email, message.as_string())
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Ошибка при отправке письма: {e}"
+            )
+        finally:
+            server.quit()

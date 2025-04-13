@@ -27,11 +27,10 @@ class User(Base):
     email = Column(String(255), unique=True, nullable=False)
     password_hash = Column(String, nullable=False)
     avatar = Column(String)
-    is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     is_active = Column(Boolean, default=False)
     role = Column(String(10), default="user")
-    
+
 class Project(Base):
     __tablename__ = "projects"
 
@@ -53,7 +52,7 @@ class Project(Base):
     end_date = Column(DateTime, nullable=False)
     creator_name = Column(String(100))
     creator_avatar = Column(String(255))
-
+    is_active = Column(Boolean, default=False)
 class Achievement(Base):
     __tablename__ = "achievements"
 

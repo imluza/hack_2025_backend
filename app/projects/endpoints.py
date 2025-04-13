@@ -10,6 +10,8 @@ from app.schemas import (
     ProjectCreate, ProjectUpdate, Project,
     ProjectListResponse, ESGRating
 )
+from app.auth.email_service import send_email_to_admins
+from app.agent_model import analyze_title
 
 router = APIRouter(prefix="/projects", tags=["projects"])
 
@@ -19,29 +21,25 @@ def get_projects(
     limit: int = 100,
     db: Session = Depends(get_db)
 ):
-    db_projects = db.query(ProjectModel).offset(skip).limit(limit).all()
+    db_projects = db.query(ProjectModel).filter(ProjectModel.is_active == True).offset(skip).limit(limit).all()
     projects = [Project.from_orm(project) for project in db_projects]
     return {"projects": projects}
-
 @router.post("/", response_model=Project, status_code=status.HTTP_201_CREATED)
 async def create_project(
-    request: Request, 
+    request: Request,
     project_data: ProjectCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     headers = request.headers
-    print("Headers:", headers)
 
     body = await request.body()
-    print("Body:", body.decode())
 
     end_date = project_data.end_date
     if end_date.tzinfo is None:
         end_date = end_date.replace(tzinfo=timezone.utc)
 
     days_left = (end_date - datetime.now(timezone.utc)).days
-
     project = ProjectModel(
         id=str(uuid.uuid4()),
         title=project_data.title,
@@ -60,12 +58,24 @@ async def create_project(
         end_date=end_date,
         creator_id=str(current_user.id),
         creator_name=current_user.name,
-        creator_avatar=current_user.avatar
+        creator_avatar=current_user.avatar,
+        is_active=False
     )
 
     db.add(project)
     db.commit()
     db.refresh(project)
+
+    analysis_result = analyze_title(project_data.title)
+
+    if analysis_result:
+        valid_projects = [item for item in analysis_result if item['valid'] == 'true']
+        if valid_projects:
+            project.is_active = True
+            db.commit()
+        else:
+            await send_email_to_admins(str(uuid.uuid4()), project_data.title, analysis_result, db)
+
     return Project.from_orm(project)
 
 @router.get("/{project_id}", response_model=Project)

@@ -53,7 +53,7 @@ class UserAdmin(ModelView, model=User):
 
 class ProjectAdmin(ModelView, model=Project):
     column_list = [
-        Project.id, Project.title, Project.category,
+        Project.id, Project.title,Project.is_active, Project.category,
         Project.current_amount, Project.target_amount,
         Project.creator_id, Project.created_at, Project.end_date
     ]
